@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Air Gesture Control - Touchless control for Windows</title>
+<meta name="description" content="Control your Windows PC with hand gestures. Free, offline and private.">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#02040a;--ice:#a9d6ff;--gold:#e6c98b;--text:#f1f5fb;--mute:#8d9bb3;--glass:rgba(255,255,255,.04);--edge:rgba(255,255,255,.1)}
+*{box-sizing:border-box}
+html{background:var(--bg);scroll-behavior:smooth}
+body{margin:0;color:var(--text);font-family:Inter,"Segoe UI",system-ui,sans-serif;font-weight:300;line-height:1.65;background:radial-gradient(ellipse at 20% 0%,rgba(80,60,170,.25),transparent 50%),radial-gradient(ellipse at 85% 40%,rgba(30,100,170,.18),transparent 50%),var(--bg);background-attachment:fixed}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+a{color:var(--gold)}
+nav{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:16px 5vw;background:linear-gradient(rgba(2,4,10,.8),transparent)}
+nav b{font-weight:700;letter-spacing:.2em;font-size:.82rem}
+nav div a{margin-left:24px;text-decoration:none;color:var(--mute);font-size:.82rem}
+nav div a:hover{color:#fff}
+/* ---- scroll stage ---- */
+#stage{position:relative;height:440vh;z-index:1}
+.pin{position:sticky;top:0;height:100vh;overflow:hidden}
+#gl{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+.layer{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 6vw;will-change:opacity,transform,filter}
+.big{font-weight:800;line-height:.95;letter-spacing:-.04em;margin:0;font-size:clamp(3.6rem,19vw,17rem);background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(169,214,255,.08));-webkit-background-clip:text;background-clip:text;color:transparent}
+.h2{font-weight:800;line-height:1.02;letter-spacing:-.035em;margin:0;font-size:clamp(2.4rem,7vw,6rem)}
+.h2 em{font-style:normal;background:linear-gradient(90deg,var(--ice),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tiny{color:var(--gold);letter-spacing:.3em;font-size:.7rem;font-weight:500;margin-bottom:14px}
+.p{max-width:520px;color:var(--mute);margin:18px 0 0;font-size:1.05rem}
+.hero-bottom{position:absolute;left:0;right:0;bottom:7vh;z-index:3;text-align:center;padding:0 6vw}
+.btn{display:inline-block;margin:6px 8px;padding:14px 30px;border-radius:999px;text-decoration:none;font-weight:500;font-size:.9rem;transition:.25s}
+.btn.main{background:#fff;color:#05080f}
+.btn.main:hover{transform:translateY(-3px);box-shadow:0 10px 36px rgba(169,214,255,.45)}
+.btn.ghost{border:1px solid var(--edge);color:var(--text);background:var(--glass)}
+.btn.ghost:hover{border-color:var(--ice)}
+.scrollhint{color:var(--mute);font-size:.72rem;letter-spacing:.25em;margin-top:18px}
+#L1,#L2{opacity:0}
+/* ---- content ---- */
+main{position:relative;z-index:1;background:linear-gradient(transparent,rgba(2,4,10,.65) 160px)}
+.sec{max-width:1120px;margin:auto;padding:110px 6vw 20px}
+.sec h2{font-weight:800;letter-spacing:-.03em;line-height:1.05;font-size:clamp(2rem,5vw,3.6rem);margin:.15em 0 .3em}
+.sub{color:var(--mute);max-width:600px;margin:0 0 44px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;perspective:1000px}
+.card{background:var(--glass);border:1px solid var(--edge);border-radius:22px;padding:30px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:transform .15s ease-out,border-color .3s;transform-style:preserve-3d}
+.card:hover{border-color:rgba(169,214,255,.5)}
+.card .ico{font-size:1.9rem;display:block;transform:translateZ(40px)}
+.card h3{font-weight:500;font-size:1.2rem;margin:.5em 0 .2em;transform:translateZ(25px)}
+.card p{margin:0;color:var(--mute);font-size:.95rem}
+.list{border:1px solid var(--edge);border-radius:22px;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden}
+.row{display:grid;grid-template-columns:60px 1.1fr 1.6fr;gap:18px;align-items:center;padding:18px 28px;border-top:1px solid var(--edge);transition:background .25s}
+.row:first-child{border-top:0}
+.row:hover{background:rgba(169,214,255,.06)}
+.row .ico{font-size:1.8rem}
+.row b{font-weight:500;font-size:1.05rem;display:block}
+.row small{color:var(--gold);letter-spacing:.15em;font-size:.65rem;font-weight:500}
+.row span{color:var(--mute);font-size:.93rem}
+.note{border:1px solid var(--edge);background:var(--glass);border-radius:16px;padding:20px 26px;margin-bottom:16px;color:var(--mute)}
+.note b{color:var(--text);font-weight:500}
+code{background:rgba(255,255,255,.08);padding:2px 8px;border-radius:6px;color:var(--ice);font-size:.88em}
+footer{position:relative;z-index:1;text-align:center;color:var(--mute);padding:90px 6vw 50px;font-size:.85rem}
+.rv{opacity:0;transform:translateY(28px);transition:opacity .9s,transform .9s}
+.rv.in{opacity:1;transform:none}
+@media(max-width:700px){nav div a:not(:last-child){display:none}.row{grid-template-columns:46px 1fr;padding:16px 18px}.row span{grid-column:2}}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<nav><b>AIR GESTURE</b><div><a href="#features">Features</a><a href="#controls">Controls</a><a href="#install">Install</a><a href="https://github.com/Akshaykumar-commits/air-gesture-control">GitHub</a></div></nav>
+
+<div id="stage">
+  <div class="pin">
+    <div class="layer" id="L0"><h1 class="big">AIR<br>GESTURE</h1></div>
+    <div class="layer" id="L1"><div class="tiny">TOUCHLESS</div><h2 class="h2">Control, on<br><em>every level.</em></h2><p class="p">Your hand becomes 21 points of light. Every movement turns into a click, a scroll or a swipe.</p></div>
+    <div class="layer" id="L2"><div class="tiny">11 GESTURES · 1 HAND</div><h2 class="h2">Point. Pinch.<br><em>Pull the world closer.</em></h2><p class="p">Volume, brightness, slides, apps. All from thin air, with nothing but a webcam.</p></div>
+    <canvas id="gl"></canvas>
+    <div class="hero-bottom" id="HB">
+      <a class="btn main" href="https://github.com/Akshaykumar-commits/air-gesture-control/releases/latest">Download for Windows</a>
+      <a class="btn ghost" href="#controls">See the gestures</a>
+      <div class="scrollhint">SCROLL</div>
+    </div>
+  </div>
+</div>
+
+<main>
+<section class="sec rv" id="features">
+  <div class="tiny" style="color:var(--gold);letter-spacing:.3em;font-size:.7rem">CAPABILITIES</div>
+  <h2>Everything within reach.</h2>
+  <p class="sub">Precise hand tracking powered by MediaPipe, with fast native Windows control underneath. Free, offline, private.</p>
+  <div class="grid" id="fgrid"></div>
+</section>
+<section class="sec rv" id="controls">
+  <div class="tiny" style="color:var(--gold);letter-spacing:.3em;font-size:.7rem">GESTURE GUIDE</div>
+  <h2>Eleven gestures. One hand.</h2>
+  <p class="sub">Hold a gesture steadily for the actions marked HOLD. A progress ring around your palm shows when it triggers.</p>
+  <div class="list" id="glist"></div>
+</section>
+<section class="sec rv" id="install">
+  <div class="tiny" style="color:var(--gold);letter-spacing:.3em;font-size:.7rem">GET STARTED</div>
+  <h2>Ready in a minute.</h2>
+  <p class="sub">&nbsp;</p>
+  <div class="note"><b>1.</b> Download <code>GestureControlSetup.exe</code> from the <a href="https://github.com/Akshaykumar-commits/air-gesture-control/releases/latest">latest release</a>. <b>2.</b> Run it and open Air Gesture Control from the Start Menu. <b>3.</b> Press Start and raise your hand in good light.</div>
+  <div class="note"><b>Windows warning?</b> The app is not code-signed yet, so SmartScreen may show "Windows protected your PC". Click <b>More info</b>, then <b>Run anyway</b>.</div>
+  <div class="note"><b>Safety.</b> Move the real mouse to the top-left corner to stop instantly, or make a fist to lock. <b>Needs</b> Windows 10/11 (64-bit) and a webcam. Your camera video never leaves your PC.</div>
+</section>
+</main>
+<footer>Air Gesture Control · Built with Python, OpenCV and MediaPipe</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var F=[["🖱️","Full mouse control","Move, click, right click, drag and scroll without touching a thing."],["🎚️","Volume and brightness","Raise or lower your hand to tune sound or screen brightness."],["🪟","Slides and windows","Swipe through slides, open Task View, show the desktop or close a window."],["🚀","App launcher","Open Chrome, File Explorer or any app with a held gesture."],["🎛️","Simple settings","Cursor speed, smoothness, camera picker and a tray icon."],["🔒","Private by design","Processed on your PC. Nothing is saved or sent."]];
+var G=[["☝️","POINT","Move cursor","Index finger only."],["🤏","PINCH","Click and drag","Thumb + index. Quick pinch clicks, hold to drag."],["👌","THUMB + MIDDLE","Right click","Pinch thumb and middle finger."],["✌️","PEACE","Scroll","Index + middle up, move your hand up or down."],["🖐️","OPEN PALM SWIPE","Slides and windows","Left/right = arrow keys. Up = Task View. Down = Show desktop."],["🤙","SHAKA","Volume","Thumb + pinky, move hand up or down."],["🤟","LOVE","Brightness","Thumb + index + pinky, move up for brighter."],["3️⃣","THREE FINGERS · HOLD","Open app 1","Chrome by default, configurable."],["4️⃣","FOUR FINGERS · HOLD","Open app 2","File Explorer by default."],["🤘","ROCK · HOLD","Close window","Sends Alt+F4. Can be switched off."],["✊","FIST · HOLD","Lock / unlock","Pauses all gestures so nothing fires by accident."]];
+document.getElementById("fgrid").innerHTML=F.map(function(f){return '<div class="card tilt"><span class="ico">'+f[0]+'</span><h3>'+f[1]+'</h3><p>'+f[2]+'</p></div>'}).join("");
+document.getElementById("glist").innerHTML=G.map(function(g){return '<div class="row"><span class="ico">'+g[0]+'</span><div><small>'+g[1]+'</small><b>'+g[2]+'</b></div><span>'+g[3]+'</span></div>'}).join("");
+document.querySelectorAll(".tilt").forEach(function(c){
+  c.addEventListener("mousemove",function(e){var r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;c.style.transform="rotateY("+x*12+"deg) rotateX("+(-y*12)+"deg)"});
+  c.addEventListener("mouseleave",function(){c.style.transform=""});
+});
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}})},{threshold:.12});
+document.querySelectorAll(".rv").forEach(function(el){io.observe(el)});
+
+// ---- stars ----
+(function(){
+  var c=document.getElementById("sky"),x=c.getContext("2d"),S=[],W,H,sh=null,still=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function rs(){W=c.width=innerWidth;H=c.height=innerHeight;S=[];for(var i=0,n=Math.round(W*H/5500);i<n;i++)S.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.2+.2,p:Math.random()*6.28,s:Math.random()*.025+.006,d:Math.random()*.7+.2})}
+  addEventListener("resize",rs);rs();
+  (function loop(){requestAnimationFrame(loop);x.clearRect(0,0,W,H);
+    S.forEach(function(s){if(!still)s.p+=s.s;var a=.3+.7*Math.abs(Math.sin(s.p)),yy=((s.y-scrollY*s.d*.15)%H+H)%H;x.fillStyle="rgba(200,225,255,"+a+")";x.beginPath();x.arc(s.x,yy,s.r,0,6.283);x.fill()});
+    if(!still&&!sh&&Math.random()<.003)sh={x:Math.random()*W*.8+W*.2,y:Math.random()*H*.4,l:0};
+    if(sh){var g=x.createLinearGradient(sh.x,sh.y,sh.x+sh.l*.7,sh.y-sh.l*.35);g.addColorStop(0,"rgba(255,255,255,.9)");g.addColorStop(1,"rgba(255,255,255,0)");x.strokeStyle=g;x.lineWidth=1.5;x.beginPath();x.moveTo(sh.x,sh.y);x.lineTo(sh.x-sh.l*.7,sh.y+sh.l*.35);x.stroke();sh.x-=14;sh.y+=7;sh.l+=4;if(sh.x<-200||sh.y>H)sh=null}
+  })();
+})();
+
+// ---- scroll-driven particle hand ----
+(function(){
+  var canvas=document.getElementById("gl"),stage=document.getElementById("stage");
+  var L=[document.getElementById("L0"),document.getElementById("L1"),document.getElementById("L2")],HB=document.getElementById("HB");
+  function cl(v){return Math.max(0,Math.min(1,v))}
+  function sm(v){v=cl(v);return v*v*(3-2*v)}
+  function win(p,a,b,c,d){return sm((p-a)/(b-a))*(1-sm((p-c)/(d-c)))}
+  function show(el,o){el.style.opacity=o;if(o>.99){el.style.transform="none";el.style.filter="none"}else{el.style.transform="translateY("+(1-o)*34+"px) scale("+(.96+.04*o)+")";el.style.filter="blur("+(1-o)*14+"px)"}}
+  var ok=true,renderer,scene,camera,uni,lines,lmat,grp;
+  try{
+    renderer=new THREE.WebGLRenderer({canvas:canvas,alpha:true,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.z=7;
+    var P=[[0,-1.6],[-.6,-1.2],[-1,-.8],[-1.3,-.4],[-1.55,0],[-.45,-.3],[-.5,.4],[-.52,.85],[-.54,1.3],[-.1,-.25],[-.1,.5],[-.1,1],[-.1,1.5],[.28,-.3],[.32,.4],[.34,.85],[.36,1.25],[.62,-.45],[.75,.1],[.82,.45],[.88,.8]];
+    var C=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+    var V=P.map(function(p,i){return new THREE.Vector3(p[0],p[1],Math.sin(i*1.7)*.2)});
+    var R=[.2,.15,.13,.11,.085,.125,.11,.095,.075,.13,.115,.098,.078,.12,.105,.09,.07,.105,.09,.078,.062];
+    var TB=[[1,2],[2,3],[3,4],[5,6],[6,7],[7,8],[9,10],[10,11],[11,12],[13,14],[14,15],[15,16],[17,18],[18,19],[19,20],[0,1],[0,5],[0,17]];
+    var LT=new THREE.Vector3(-.4,.5,.8).normalize(),UP=new THREE.Vector3(0,0,1);
+    var W=[],tot=0;TB.forEach(function(e){var w=V[e[0]].distanceTo(V[e[1]])*(R[e[0]]+R[e[1]]);W.push(w);tot+=w});
+    var poly=[0,1,5,9,13,17],cen=new THREE.Vector3();poly.forEach(function(i){cen.add(V[i])});cen.multiplyScalar(1/6);
+    var N=7000,hand=new Float32Array(N*3),ring=new Float32Array(N*3),seed=new Float32Array(N),shade=new Float32Array(N);
+    for(var i=0;i<N;i++){
+      var r=Math.random(),c,sh;
+      if(r<.58){
+        var w=Math.random()*tot,k=0;while(k<W.length-1&&w>W[k]){w-=W[k];k++}
+        var e=TB[k],a=V[e[0]],b=V[e[1]],t=Math.random(),d=b.clone().sub(a).normalize();
+        var u=new THREE.Vector3().crossVectors(d,UP).normalize(),v=new THREE.Vector3().crossVectors(d,u),th=Math.random()*6.283;
+        var n=u.multiplyScalar(Math.cos(th)).add(v.multiplyScalar(Math.sin(th))),rr=R[e[0]]+(R[e[1]]-R[e[0]])*t;
+        c=a.clone().lerp(b,t).add(n.clone().multiplyScalar(rr));sh=Math.max(0,n.dot(LT));
+      }else if(r<.9){
+        var tri=Math.floor(Math.random()*6),p1=V[poly[tri]],p2=V[poly[(tri+1)%6]],uu=Math.random(),vv=Math.random();
+        if(uu+vv>1){uu=1-uu;vv=1-vv}
+        c=cen.clone().add(p1.clone().sub(cen).multiplyScalar(uu)).add(p2.clone().sub(cen).multiplyScalar(vv));
+        var side=Math.random()<.5?1:-1;c.z+=side*.11;sh=side>0?LT.z:.08;
+      }else{
+        var j=Math.floor(Math.random()*21),nn=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize();
+        c=V[j].clone().add(nn.clone().multiplyScalar(R[j]*1.05));sh=Math.max(0,nn.dot(LT));
+      }
+      hand[i*3]=c.x+(Math.random()-.5)*.012;hand[i*3+1]=c.y+(Math.random()-.5)*.012;hand[i*3+2]=c.z+(Math.random()-.5)*.012;shade[i]=sh;
+      var ang=Math.random()*6.283,rad=3.1+Math.random()*1.1+Math.pow(Math.random(),3)*1.6;
+      ring[i*3]=Math.cos(ang)*rad*1.15;ring[i*3+1]=Math.sin(ang)*rad*.8-.1;ring[i*3+2]=(Math.random()-.5)*2.2;seed[i]=Math.random();
+    }
+    var g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.BufferAttribute(hand,3));g.setAttribute("aRing",new THREE.BufferAttribute(ring,3));
+    g.setAttribute("aSeed",new THREE.BufferAttribute(seed,1));g.setAttribute("aShade",new THREE.BufferAttribute(shade,1));
+    uni={uMix:{value:0},uTime:{value:0},uPx:{value:renderer.getPixelRatio()}};
+    var mat=new THREE.ShaderMaterial({uniforms:uni,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+      vertexShader:"attribute vec3 aRing;attribute float aSeed,aShade;uniform float uMix,uTime,uPx;varying float vA,vM,vS;void main(){vec3 p=mix(position,aRing,uMix);float k=1.+uMix*3.;p+=vec3(sin(uTime*1.2+aSeed*20.),cos(uTime+aSeed*13.),sin(uTime*.8+aSeed*7.))*.02*k;vec4 mv=modelViewMatrix*vec4(p,1.);gl_PointSize=2.1*uPx*(1.+aSeed*.8)*(7./-mv.z);gl_Position=projectionMatrix*mv;vA=aSeed;vM=uMix;vS=mix(aShade,.6,uMix);}",
+      fragmentShader:"varying float vA,vM,vS;void main(){float d=length(gl_PointCoord-.5);if(d>.5)discard;float a=smoothstep(.5,0.,d);vec3 c=mix(vec3(.66,.84,1.),vec3(.9,.79,.55),vM*vA);gl_FragColor=vec4(c*(.6+.9*vS),a*(.3+.7*vA)*(.5+.8*vS));}"});
+    lmat=new THREE.LineBasicMaterial({color:0xa9d6ff,transparent:true,opacity:.1});
+    var lp=[];C.forEach(function(e){lp.push(V[e[0]],V[e[1]])});
+    lines=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(lp),lmat);
+    grp=new THREE.Group();grp.add(new THREE.Points(g,mat));grp.add(lines);scene.add(grp);
+    function size(){var w=canvas.clientWidth,h=canvas.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();grp.scale.setScalar(w/h<1?.8:1.25)}
+    addEventListener("resize",size);size();
+  }catch(e){ok=false;canvas.style.display="none"}
+  var mx=0,my=0,smx=0,smy=0,t=0,ps=0,intro=0,last=performance.now(),still=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  addEventListener("mousemove",function(e){mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5});
+  (function loop(now){
+    requestAnimationFrame(loop);
+    var dt=Math.min((now-last)/1000||.016,.05);last=now;
+    var r=stage.getBoundingClientRect(),target=cl(-r.top/(stage.offsetHeight-innerHeight));
+    ps+=(target-ps)*(1-Math.exp(-dt*5));            // inertia: scroll is eased, never jumps
+    smx+=(mx-smx)*(1-Math.exp(-dt*4));smy+=(my-smy)*(1-Math.exp(-dt*4));
+    intro=Math.min(intro+dt/.6,1);var fi=sm(intro);   // gentle fade-in on load
+    var p=ps;
+    show(L[0],win(p,-1,0,.12,.26));show(L[1],win(p,.24,.36,.56,.66));show(L[2],win(p,.68,.8,2,3));
+    HB.style.opacity=1-sm(p/.15);HB.style.pointerEvents=p>.12?"none":"auto";
+    if(!ok)return;
+    canvas.style.opacity=fi;
+    if(!still)t+=dt;
+    var m=sm((p-.18)/.22)*(1-sm((p-.6)/.2));
+    uni.uMix.value=m;uni.uTime.value=t;lmat.opacity=.1*(1-cl(m*1.6));
+    grp.rotation.y=Math.sin(t*.7)*.3+smx*.6+p*3.1416;grp.rotation.x=smy*.3+m*.5;grp.rotation.z=m*t*.25;
+    grp.position.y=Math.sin(t)*.06;
+    renderer.render(scene,camera);
+  })(performance.now());
+})();
+</script>
+</body>
+</html>
