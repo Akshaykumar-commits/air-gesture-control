@@ -1,0 +1,8 @@
+opencv-python
+mediapipe==0.10.14
+pyautogui
+numpy<2
+screen-brightness-control
+pystray
+Pillow
+pyinstaller
